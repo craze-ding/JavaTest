@@ -1,22 +1,38 @@
+import java.util.concurrent.locks.*; 
 class Resource{
 	private String name;
 	private int count=1;
-	private boolean flag=false;	
-	public synchronized void set(String name){		
+	private boolean flag=false;
+	Lock lock=new ReentrantLock();//创建锁对象
+	Condition pro_con=lock.newCondition();//通过已有的锁获取该锁上监视器对象
+	Condition con_con=lock.newCondition();	
+	public  void set(String name){
+		lock.lock();
+		try{
 			while(flag)//while解决线程唤醒是否去运行?
-				try{this.wait();}catch(InterruptedException i){}
+				try{pro_con.await();}catch(InterruptedException i){}
 			this.name=name+count;
             count++;
-            System.out.println(Thread.currentThread().getName()+"--生产者--"+this.name);			
+            System.out.println(Thread.currentThread().getName()+"--生产者puls--"+this.name);			
 			flag=true;
-			this.notifyAll();//解决保证一定会唤醒对方线程		
+			con_con.signal();//解决保证一定会唤醒对方线程	
+		}
+		finally{
+			lock.unlock();//释放锁必须做
+		}				
 	}
-	public synchronized void get(){		
+	public  void get(){
+		lock.lock();
+		try{
 			while(!flag)
-				try{this.wait();}catch(InterruptedException i){}            
-			System.out.println(Thread.currentThread().getName()+"----消费者----"+this.name);
+				try{con_con.await();}catch(InterruptedException i){}            
+			System.out.println(Thread.currentThread().getName()+"----消费者puls----"+this.name);
 			flag=false;
-			this.notifyAll();		
+			pro_con.signal();
+		}
+		finally{
+			lock.unlock();
+		}				
 	}
 }
 class Producers implements Runnable{
